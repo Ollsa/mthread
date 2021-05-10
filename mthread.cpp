@@ -8,8 +8,6 @@
 #include "FIFO.h"
 
 #include <algorithm>
-
-
 unsigned int crcTable[256];
 
 std::string doRandomNumbers(FIFO* fifo, unsigned int max_count, unsigned int data_size)
@@ -65,7 +63,6 @@ unsigned int calculateCRC32(FIFO* fifo)
 				for (size_t i = 0; i < 4; ++i)
 				{
 					c = crcTable[(c ^ *(((unsigned char*)&data) + i)) & 0xFF] ^ (c >> 8);
-					//std::cout << c << std::endl;
 				}
 			}
 		}
