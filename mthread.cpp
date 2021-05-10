@@ -54,11 +54,10 @@ void crcInit(void)
 	}
 };
 
-unsigned int calculateCRC32(std::queue<Node> *fifo)
+void calculateCRC32(std::queue<Node> *fifo)
 {
 	unsigned int c = 0;
 	std::string _string;
-	//std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
 	while (fifo->size() > 0) {
 		mt2.lock();
@@ -75,15 +74,11 @@ unsigned int calculateCRC32(std::queue<Node> *fifo)
 				for (size_t i = 0; i < 4; ++i)
 				{
 					c = crcTable[(c ^ *(((unsigned char*)&data) + i)) & 0xFF] ^ (c >> 8);
-					//std::cout << "CRC: " << std::this_thread::get_id() << ":" << c << std::endl;
 				}
 			}
 		}
 		std::cout << "CRC: " << std::this_thread::get_id() << ":" << (c ^ 0xFFFFFFFF) << std::endl;
 	}
-	//std::cout << std::this_thread::get_id() << std::endl;
-	
-	return c ^ 0xFFFFFFFF;
 };
 
 int main(int argc, char* argv[])
@@ -95,16 +90,14 @@ int main(int argc, char* argv[])
 	unsigned int countRandom = std::thread::hardware_concurrency() / 2;
 	unsigned int countCRC = std::thread::hardware_concurrency() - countRandom;
 
-
 	std::queue<Node> fifo;
-	
 	std::vector<int> resultCRC;
 	std::vector<std::thread> vThreadRand(countRandom);
 	std::vector<std::thread> vThreadCRC(countCRC);
 	std::vector<unsigned int>crc;
 
 	crcInit();
-	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 	for (unsigned int i = 0; i < countRandom; i++)
 	{
@@ -127,7 +120,6 @@ int main(int argc, char* argv[])
 		);
 	}
 	
-	
 	for (unsigned int i = 0; i < vThreadRand.size(); i++)
 	{
 		vThreadRand.at(i).join();
@@ -138,28 +130,5 @@ int main(int argc, char* argv[])
 		vThreadCRC.at(i).join();
 	}
 
-	/*//Проверка CRC
-	if (!resultCRC.empty())
-	{
-		for (unsigned int i = 0; i < resultCRC.size(); i++)
-		{
-			if (!resultCRC.at(i).empty())
-			{
-				if (resultCRC.at(i) != resultCRC.at(i + 1))
-				{
-					std::cout << i << " Unequal CRC values " << std::endl;
-				}
-			}
-			else
-			{
-				std::cout << i << " Empty CRC values for all blocks  " << std::endl;
-			}
-		}
-	}
-	else
-	{
-		std::cout << " Empty CRC values for all blocks  " << std::endl;
-	}*/
-	//fifo.print();
 	return 0;
 }
