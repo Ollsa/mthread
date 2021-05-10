@@ -6,22 +6,30 @@
 #include <string>
 #include <random>
 #include "FIFO.h"
-
 #include <algorithm>
-unsigned int crcTable[256];
+#include <queue>
+#include <mutex>
 
-std::string doRandomNumbers(FIFO* fifo, unsigned int max_count, unsigned int data_size)
+unsigned int crcTable[256];
+std::mutex mt1;
+std::mutex mt2;
+
+std::string doRandomNumbers(std::queue<Node> *fifo, unsigned int max_count, unsigned int data_size)
 {
 	std::string str;
 	std::random_device rd;
-
-	while (fifo->getSize() < max_count) {
+	while (fifo->size() < max_count) {
 		for (unsigned int i = 0; i < data_size; i++)
 		{
 			unsigned char number = rd();
 			str.push_back(number);
 		}
-		fifo->push(str);
+		mt1.lock();
+		auto id = std::this_thread::get_id();
+		uint32_t* ptr = (uint32_t*)&id;
+		unsigned int prId = *ptr;
+		fifo->push({ str, prId });
+		mt1.unlock();
 		str.clear();
 	}
 	return str;
@@ -46,14 +54,18 @@ void crcInit(void)
 	}
 };
 
-unsigned int calculateCRC32(FIFO* fifo)
+unsigned int calculateCRC32(std::queue<Node> *fifo)
 {
 	unsigned int c = 0;
 	std::string _string;
 	//std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
-	while (fifo->getSize() > 0) {
-		 _string = fifo->pop();
+	while (fifo->size() > 0) {
+		mt2.lock();
+		Node node = fifo->front();
+		fifo->pop();
+		mt2.unlock();
+		_string = node.data;
 		if (!_string.empty())
 		{
 			uint32_t c = 0 ^ 0xFFFFFFFF;
@@ -79,7 +91,7 @@ int main(int argc, char* argv[])
 	
 	unsigned int count = std::thread::hardware_concurrency();
 
-	FIFO fifo;
+	std::queue<Node> fifo;
 	FIFO fifo_crc;
 	std::string str;
 	

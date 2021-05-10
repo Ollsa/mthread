@@ -82,11 +82,6 @@ Node* FIFO::popNode() {
     return temp;
 }
 
-unsigned int FIFO::getSize() {
-    return this->size;
-}
-
-
 void FIFO:: print() {
     Node* temp = front;                             //��������� ���� ��������� � ���������� ��� �� ������ ������
     while (temp != NULL) {                          //� ������� ����� ������� ���� ������
