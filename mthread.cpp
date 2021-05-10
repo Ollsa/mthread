@@ -75,11 +75,14 @@ unsigned int calculateCRC32(std::queue<Node> *fifo)
 				for (size_t i = 0; i < 4; ++i)
 				{
 					c = crcTable[(c ^ *(((unsigned char*)&data) + i)) & 0xFF] ^ (c >> 8);
+					//std::cout << "CRC: " << std::this_thread::get_id() << ":" << c << std::endl;
 				}
 			}
 		}
+		std::cout << "CRC: " << std::this_thread::get_id() << ":" << (c ^ 0xFFFFFFFF) << std::endl;
 	}
 	//std::cout << std::this_thread::get_id() << std::endl;
+	
 	return c ^ 0xFFFFFFFF;
 };
 
@@ -89,20 +92,21 @@ int main(int argc, char* argv[])
 	unsigned int m = std::stoi(argv[2]);
 	unsigned int size = std::stoi(argv[3]);
 	
-	unsigned int count = std::thread::hardware_concurrency();
+	unsigned int countRandom = std::thread::hardware_concurrency() / 2;
+	unsigned int countCRC = std::thread::hardware_concurrency() - countRandom;
+
 
 	std::queue<Node> fifo;
-	FIFO fifo_crc;
-	std::string str;
 	
 	std::vector<int> resultCRC;
-	std::vector<std::thread> vThreadCRC(count/2);
-	std::vector<std::thread> vThreadRand(count/2);
+	std::vector<std::thread> vThreadRand(countRandom);
+	std::vector<std::thread> vThreadCRC(countCRC);
 	std::vector<unsigned int>crc;
 
 	crcInit();
+	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
-	for (unsigned int i = 0; i < (count/2); i++)
+	for (unsigned int i = 0; i < countRandom; i++)
 	{
 		vThreadRand.at(i) = std::thread
 		([&]()
@@ -113,7 +117,7 @@ int main(int argc, char* argv[])
 		
 	}
 
-	for (unsigned int i = 0; i < (count / 2); i++)
+	for (unsigned int i = 0; i < countCRC; i++)
 	{
 		vThreadCRC.at(i) = std::thread
 		([&]()
