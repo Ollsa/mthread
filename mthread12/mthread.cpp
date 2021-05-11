@@ -83,8 +83,6 @@ void calculateCRC32(std::queue<Node> *fifo)
 
 int main(int argc, char* argv[])
 {
-	unsigned int n = std::stoi(argv[1]);
-	unsigned int m = std::stoi(argv[2]);
 	unsigned int size = std::stoi(argv[3]);
 	
 	unsigned int countRandom = std::thread::hardware_concurrency() / 2;
