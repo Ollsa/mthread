@@ -342,3 +342,4 @@ healthchecksdb
 *.gitignore
 *.vcxproj
 *.filters
+*.sln
