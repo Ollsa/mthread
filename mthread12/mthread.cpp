@@ -36,40 +36,18 @@ std::string doRandomNumbers(std::queue<Node> *fifo, unsigned int max_count, unsi
 	return str;
 };
 
-void crcInit(void)
-{
-	uint32_t polynomial = 0xEDB88320;
-	for (uint32_t i = 0; i < 256; i++)
-	{
-		uint32_t c = i;
-		for (size_t j = 0; j < 8; j++)
-		{
-			if (c & 1) {
-				c = polynomial ^ (c >> 1);
-			}
-			else {
-				c >>= 1;
-			}
-		}
-		crcTable[i] = c;
-	}
-};
-
 void calculateCRC32(std::queue<Node> *fifo)
 {
-	
 	unsigned int crc = 0;
-	std::string _string;
 
 	while (fifo->size() > 0) {
 		mt2.lock();
 		Node node = fifo->front();
 		fifo->pop();
 		mt2.unlock();
-		_string = node.data;
-		if (!_string.empty())
+		if (!node.data.empty())
 		{
-			crc = CRC::Calculate((unsigned char*)&_string, sizeof(_string), CRC::CRC_32());
+			crc = CRC::Calculate(&node.data, sizeof(node.data), CRC::CRC_32());
 		}
 		std::cout << "CRC: " << std::this_thread::get_id() << ":" << (crc) << std::endl;
 	}
@@ -88,7 +66,6 @@ int main(int argc, char* argv[])
 	std::vector<std::thread> vThreadCRC(countCRC);
 	std::vector<unsigned int>crc;
 
-	crcInit();
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 	for (unsigned int i = 0; i < countRandom; i++)
