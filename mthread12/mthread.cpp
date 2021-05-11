@@ -60,10 +60,8 @@ int main(int argc, char* argv[])
 	unsigned int countCRC = std::thread::hardware_concurrency() - countRandom;
 
 	std::queue<Node> fifo;
-	std::vector<int> resultCRC;
 	std::vector<std::thread> vThreadRand(countRandom);
 	std::vector<std::thread> vThreadCRC(countCRC);
-	std::vector<unsigned int>crc;
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
