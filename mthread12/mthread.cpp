@@ -11,7 +11,6 @@
 #include <queue>
 #include <mutex>
 
-unsigned int crcTable[256];
 std::mutex mt1;
 std::mutex mt2;
 
