@@ -6,6 +6,7 @@
 #include <string>
 #include <random>
 #include "FIFO.h"
+#include "CRC.h"
 #include <algorithm>
 #include <queue>
 #include <mutex>
@@ -56,7 +57,8 @@ void crcInit(void)
 
 void calculateCRC32(std::queue<Node> *fifo)
 {
-	unsigned int c = 0;
+	
+	unsigned int crc = 0;
 	std::string _string;
 
 	while (fifo->size() > 0) {
@@ -67,17 +69,9 @@ void calculateCRC32(std::queue<Node> *fifo)
 		_string = node.data;
 		if (!_string.empty())
 		{
-			uint32_t c = 0 ^ 0xFFFFFFFF;
-			for (unsigned int j = 0; j < _string.size(); j++)
-			{
-				unsigned int data = _string[j];
-				for (size_t i = 0; i < 4; ++i)
-				{
-					c = crcTable[(c ^ *(((unsigned char*)&data) + i)) & 0xFF] ^ (c >> 8);
-				}
-			}
+			crc = CRC::Calculate((unsigned char*)&_string, sizeof(_string), CRC::CRC_32());
 		}
-		std::cout << "CRC: " << std::this_thread::get_id() << ":" << (c ^ 0xFFFFFFFF) << std::endl;
+		std::cout << "CRC: " << std::this_thread::get_id() << ":" << (crc) << std::endl;
 	}
 };
 
@@ -105,7 +99,6 @@ int main(int argc, char* argv[])
 				doRandomNumbers(&fifo, 25, size);
 			}
 		);
-		
 	}
 
 	for (unsigned int i = 0; i < countCRC; i++)
