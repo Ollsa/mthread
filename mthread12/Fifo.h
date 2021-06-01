@@ -1,9 +1,9 @@
 #pragma once
 #include <iostream>
-#include <string>
-#include <vector>
-#include <queue>
 #include <mutex>
+#include <string>
+#include <queue>
+#include <vector>
 
 struct Node {
     std::string data;
