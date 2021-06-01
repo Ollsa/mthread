@@ -1,99 +1,155 @@
-﻿#include "mthread.h"
+#include <algorithm>
+#include <csignal>
+#include <cstdlib>
+#include <exception>
 #include <iostream>
-#include <thread>
-#include <vector>
+#include <mutex>
+#include <stdexcept>
 #include <stdint.h>
 #include <string>
+#include <thread>
 #include <random>
-#include "FIFO.h"
-#include "CRC.h"
-#include <algorithm>
+#include <vector>
 #include <queue>
-#include <mutex>
+#include "CRC.h"
+#include "Fifo.h"
+#include "mthread.h"
+#include "RandomNumber.h"
 
-std::mutex mt1;
-std::mutex mt2;
-
-std::string doRandomNumbers(std::queue<Node> *fifo, unsigned int max_count, unsigned int data_size)
-{
-	std::string str;
-	std::random_device rd;
-	while (fifo->size() < max_count) {
-		for (unsigned int i = 0; i < data_size; i++)
-		{
-			unsigned char number = rd();
-			str.push_back(number);
-		}
-		mt1.lock();
-		auto id = std::this_thread::get_id();
-		uint32_t* ptr = (uint32_t*)&id;
-		unsigned int prId = *ptr;
-		fifo->push({ str, prId });
-		mt1.unlock();
-		str.clear();
-	}
-	return str;
-};
-
-void calculateCRC32(std::queue<Node> *fifo)
+/// <summary>
+/// Task for calculation CRC32 or all elements fifo 
+/// </summary>
+/// <param name="fifo"> Queue with data for calculating CRC32</param>
+void calculateCrc32Task(Fifo *fifo)
 {
 	unsigned int crc = 0;
 
-	while (fifo->size() > 0) {
-		mt2.lock();
-		Node node = fifo->front();
-		fifo->pop();
-		mt2.unlock();
-		if (!node.data.empty())
-		{
-			crc = CRC::Calculate(&node.data, sizeof(node.data), CRC::CRC_32());
+	//todo//while () {
+	
+	//todo	Если другой процесс положил данные после того как изменился размер
+		while (fifo->getSize() > 0) {
+			Node node = fifo->getNode();
+			if (!node.data.empty())
+			{
+				crc = CRC::Calculate(&node.data, sizeof(node.data), CRC::CRC_32());
+			}
+			std::cout << "CRC: " << std::this_thread::get_id() << ":" << (crc) << std::endl;
 		}
-		std::cout << "CRC: " << std::this_thread::get_id() << ":" << (crc) << std::endl;
+	//}
+};
+
+/// <summary>
+/// Task for generating queue whith random data blocks
+/// </summary>
+/// <param name="fifo">Queue for saving random blocks</param>
+/// <param name="max_count">Length of queue</param>
+/// <param name="data_size">Length of random blocks</param>
+void randomNumbersTask(Fifo* fifo, const unsigned int max_count, unsigned int data_size)
+{
+	while (fifo->getSize() < max_count) {
+		std::unique_ptr<RandomNumber> rNumber = std::make_unique<RandomNumber>(data_size);
+		auto id = std::this_thread::get_id();
+		uint32_t* ptr = (uint32_t*)&id;
+		unsigned int prId = *ptr;
+		fifo->setNode(rNumber.get()->getRandomStr(), prId);
 	}
 };
 
+/// <summary>
+/// Clean up all resources 
+/// </summary>
+void cleanUpResources(Fifo* fifo)
+{
+	delete fifo;
+}
+
+/// <summary>
+/// Handler for Control+C
+/// </summary>
+/// <param name="signum"></param>
+void signalHandler(int signum)
+{
+	std::cout << "Interrupt signal (" << signum << ") received." << std::endl;
+	//cleanUpResources();
+	//exit(signum);
+}
+
 int main(int argc, char* argv[])
 {
-	unsigned int size = std::stoi(argv[3]);
+	//todo
+	unsigned int fifoSize = std::stoi(argv[2]);
+	unsigned int dataBlockSize = std::stoi(argv[3]);
 	
-	unsigned int countRandom = std::thread::hardware_concurrency() / 2;
-	unsigned int countCRC = std::thread::hardware_concurrency() - countRandom;
+	unsigned int countRandomTask = std::thread::hardware_concurrency() / 2;
+	if (countRandomTask <= 0) { countRandomTask = 1; };
+	
+	signed int countCrcTask = std::thread::hardware_concurrency() - countRandomTask;
+	if (countCrcTask <= 0) { countCrcTask = 1; };
 
-	std::queue<Node> fifo;
-	std::vector<std::thread> vThreadRand(countRandom);
-	std::vector<std::thread> vThreadCRC(countCRC);
+	std::vector<std::thread> vThreadRand(countRandomTask);
+	std::vector<std::thread> vThreadCrc(countCrcTask);
+
+	signal(SIGINT, signalHandler);
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-	for (unsigned int i = 0; i < countRandom; i++)
-	{
-		vThreadRand.at(i) = std::thread
-		([&]()
-			{  
-				doRandomNumbers(&fifo, 25, size);
-			}
-		);
-	}
-
-	for (unsigned int i = 0; i < countCRC; i++)
-	{
-		vThreadCRC.at(i) = std::thread
-		([&]()
-			{
-				calculateCRC32(&fifo);
-			}
-		);
-	}
 	
-	for (unsigned int i = 0; i < vThreadRand.size(); i++)
-	{
-		vThreadRand.at(i).join();
-	}
+	//todo;
+	Fifo* fifo = new Fifo(fifoSize);
 
-	for (unsigned int i = 0; i < vThreadCRC.size(); i++)
+	try
 	{
-		vThreadCRC.at(i).join();
-	}
+		for (unsigned int i = 0U; i < countRandomTask; i++)
+		{
+			vThreadRand.push_back(std::thread
+			([&]()
+				{
+					randomNumbersTask(fifo, 11L, dataBlockSize);
+				}
+			));
+		}
 
+		for (unsigned int i = 0U; i < countCrcTask; i++)
+		{
+			vThreadCrc.push_back(std::thread
+			([&]()
+				{
+					calculateCrc32Task(fifo);
+				}
+			));
+		}
+
+		for (unsigned int i = 0; i < vThreadRand.size(); i++)
+		{
+			if (vThreadRand.at(i).joinable())
+			{
+				vThreadRand.at(i).join();
+			}
+			/// что делать, если не joinable????
+		}
+
+		for (unsigned int i = 0; i < vThreadCrc.size(); i++)
+		{
+			if (vThreadCrc.at(i).joinable())
+			{
+				vThreadCrc.at(i).join();
+			}
+		}
+		cleanUpResources(fifo);
+	}
+	catch (std::out_of_range e)
+	{
+		std::cerr << "We caught an exception of type out_of_range: "<<  e.what() << std::endl;
+		cleanUpResources(fifo);
+	}
+	catch (std::length_error e)
+	{
+		std::cerr << "We caught an exception of type std::length_error: " << e.what() << std::endl;
+		cleanUpResources(fifo);
+	}
+	catch (...)
+	{
+		std::cerr << "We caught unhandled exception " << std::endl;
+		cleanUpResources(fifo);
+	}
 	return 0;
 }
