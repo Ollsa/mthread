@@ -60,7 +60,10 @@ void randomNumbersTask(Fifo* fifo, const unsigned int max_count, unsigned int da
 /// </summary>
 void cleanUpResources(Fifo* fifo)
 {
-	delete fifo;
+	if (fifo)
+	{
+		delete fifo;
+	}
 }
 
 /// <summary>
@@ -74,36 +77,57 @@ void signalHandler(int signum)
 	//exit(signum);
 }
 
+/// <summary>
+/// Checking inputs parameters of command line
+/// </summary>
+/// <param name="argc">Quantity of parameters</param>
+/// <param name="argv">Parameters of command line</param>
+/// <returns>Parameter of application</returns>
+Parameter checkParameters(int argc, char* argv[])
+{
+	unsigned int fifoSize = 0;
+	unsigned int dataBlockSize = 0;
+
+	if (argc == 3)
+	{
+		fifoSize = std::stoi(argv[1]);
+		dataBlockSize = std::stoi(argv[2]);
+		
+	}
+	else throw std::invalid_argument("Invalid number of parameters \n");
+	
+	return Parameter(fifoSize, dataBlockSize);
+}
+
 int main(int argc, char* argv[])
 {
-	//todo
-	unsigned int fifoSize = std::stoi(argv[2]);
-	unsigned int dataBlockSize = std::stoi(argv[3]);
+	//todo unique_ptr
+	Fifo* fifo = NULL;
 	
-	unsigned int countRandomTask = std::thread::hardware_concurrency() / 2;
-	if (countRandomTask <= 0) { countRandomTask = 1; };
-	
-	signed int countCrcTask = std::thread::hardware_concurrency() - countRandomTask;
-	if (countCrcTask <= 0) { countCrcTask = 1; };
-
-	std::vector<std::thread> vThreadRand(countRandomTask);
-	std::vector<std::thread> vThreadCrc(countCrcTask);
-
-	signal(SIGINT, signalHandler);
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	
-	//todo;
-	Fifo* fifo = new Fifo(fifoSize);
-
 	try
 	{
+		Parameter p = checkParameters(argc, argv);
+		unsigned int countRandomTask = std::thread::hardware_concurrency() / 2;
+		if (countRandomTask <= 0) { countRandomTask = 1; };
+	
+		signed int countCrcTask = std::thread::hardware_concurrency() - countRandomTask;
+		if (countCrcTask <= 0) { countCrcTask = 1; };
+
+		std::vector<std::thread> vThreadRand(countRandomTask);
+		std::vector<std::thread> vThreadCrc(countCrcTask);
+
+		signal(SIGINT, signalHandler);
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+	
+		fifo = new Fifo(p.fifoSize);
+	
 		for (unsigned int i = 0U; i < countRandomTask; i++)
 		{
 			vThreadRand.push_back(std::thread
 			([&]()
 				{
-					randomNumbersTask(fifo, 11L, dataBlockSize);
+					randomNumbersTask(fifo, 10L, p.dataBlockSize);
 				}
 			));
 		}
@@ -144,6 +168,11 @@ int main(int argc, char* argv[])
 	catch (std::length_error e)
 	{
 		std::cerr << "We caught an exception of type std::length_error: " << e.what() << std::endl;
+		cleanUpResources(fifo);
+	}
+	catch (std::invalid_argument e)
+	{
+		std::cerr << "We caught an exception of type std::invalid_argument: " << e.what() << std::endl;
 		cleanUpResources(fifo);
 	}
 	catch (...)
